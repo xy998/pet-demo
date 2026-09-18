@@ -33,7 +33,15 @@
 `email`、`password` 必填，`birthday` 可选。密码至少 12 位，只保存哈希。成功创建 Session，返回 `201`：
 
 ```json
-{ "data": { "user": { "id": "user_123", "email": "user@example.com", "birthday": "1990-01-01" } } }
+{
+  "data": {
+    "user": {
+      "id": "user_123",
+      "email": "user@example.com",
+      "birthday": "1990-01-01"
+    }
+  }
+}
 ```
 
 ### `POST /auth/login`
@@ -76,22 +84,22 @@ slug, isPublished, viewCount, createdAt, updatedAt
 
 字段规则：
 
-| 字段 | 类型 | 规则 |
-| --- | --- | --- |
-| `name` | string | 必填，1–80 字符 |
-| `species` | string | `dog`、`cat`、`other` |
-| `breed` | string/null | 最多 80 字符 |
-| `bio` | string/null | 最多 2000 字符 |
-| `birthday` | string/null | `YYYY-MM-DD` |
-| `arrivalDate` | string/null | `YYYY-MM-DD` |
-| `gender` | string/null | `male`、`female`、`unknown` |
-| `weight` | string/null | 正数，最多两位小数 |
-| `coat` | string/null | 最多 40 字符 |
-| `likes` | string/null | 最多 120 字符 |
-| `tags` | string[] | 最多 6 个，每个最多 12 字符 |
-| `quote` | string/null | 最多 200 字符 |
-| `quoteAuthor` | string/null | 最多 40 字符 |
-| `avatarUrl` | string/null | 上传接口返回的 URL |
+| 字段          | 类型        | 规则                        |
+| ------------- | ----------- | --------------------------- |
+| `name`        | string      | 必填，1–80 字符             |
+| `species`     | string      | `dog`、`cat`、`other`       |
+| `breed`       | string/null | 最多 80 字符                |
+| `bio`         | string/null | 最多 2000 字符              |
+| `birthday`    | string/null | `YYYY-MM-DD`                |
+| `arrivalDate` | string/null | `YYYY-MM-DD`                |
+| `gender`      | string/null | `male`、`female`、`unknown` |
+| `weight`      | string/null | 正数，最多两位小数          |
+| `coat`        | string/null | 最多 40 字符                |
+| `likes`       | string/null | 最多 120 字符               |
+| `tags`        | string[]    | 最多 6 个，每个最多 12 字符 |
+| `quote`       | string/null | 最多 200 字符               |
+| `quoteAuthor` | string/null | 最多 40 字符                |
+| `avatarUrl`   | string/null | 上传接口返回的 URL          |
 
 ### `GET /pets`
 
@@ -118,6 +126,7 @@ slug, isPublished, viewCount, createdAt, updatedAt
   "coat": "赤色",
   "likes": "晒太阳、鸡肉干",
   "tags": ["温柔", "粘人"],
+  "avatarUrl": "/uploads/pets/2026/09/avatar.webp",
   "quote": "有你的每一天，都是值得收藏的回忆。",
   "quoteAuthor": "爱你的家人"
 }
@@ -139,9 +148,9 @@ slug, isPublished, viewCount, createdAt, updatedAt
 
 ## 图片上传
 
-### `POST /pets/:id/upload`
+### `POST /uploads`
 
-权限：当前登录用户且宠物归属当前用户。
+权限：当前登录用户。
 
 请求类型：`multipart/form-data`。
 
@@ -167,7 +176,9 @@ kind: avatar | memory（必填）
 }
 ```
 
-第一版不提供独立媒体库或媒体删除接口；删除回忆时保留已上传文件。
+前端必须先调用此接口，拿到 `url` 后再创建或更新宠物、回忆：头像写入 `avatarUrl`，回忆图片写入 `photoUrl`。上传记录需关联当前 `userId` 和 `kind`；后端在保存 `avatarUrl` 或 `photoUrl` 时，必须校验该 URL 属于当前用户且类型匹配，避免引用他人的临时上传文件。
+
+第一版不提供独立媒体库或媒体删除接口；删除宠物或回忆时保留已上传文件。
 
 ## 成长记录
 

@@ -125,7 +125,7 @@ function Layout({
     </div>
   );
 }
-function Home() {
+function Home({ user, authReady }: { user: User | null; authReady: boolean }) {
   return (
     <main>
       <section className="hero">
@@ -145,13 +145,19 @@ function Home() {
             <Button
               type="primary"
               shape="round"
-              onClick={() => navigate("/register")}
+              disabled={!authReady}
+              onClick={() => navigate(user ? "/dashboard/new" : "/register")}
             >
-              创建我们的故事 ↗
+              {user ? "添加宠物 ↗" : "创建我们的故事 ↗"}
             </Button>
-            <button className="text-button" onClick={() => navigate("/login")}>
-              登录后开始 →
-            </button>
+            {authReady && !user && (
+              <button
+                className="text-button"
+                onClick={() => navigate("/login")}
+              >
+                登录后开始 →
+              </button>
+            )}
           </div>
           <small>专属名片 · 图文回忆 · 永久分享</small>
         </div>
@@ -344,13 +350,38 @@ function Dashboard({ user }: { user: User }) {
         />
       )}
       {pets.map((pet) => (
-        <PetCard key={pet.id} pet={pet} />
+        <PetCard
+          key={pet.id}
+          pet={pet}
+          onDeleted={(id) =>
+            setPets((items) => items.filter((item) => item.id !== id))
+          }
+        />
       ))}
       <div className="account-caption">当前登录：{user.email}</div>
     </main>
   );
 }
-function PetCard({ pet }: { pet: Pet }) {
+function PetCard({
+  pet,
+  onDeleted,
+}: {
+  pet: Pet;
+  onDeleted: (id: string) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await api.deletePet(pet.id);
+      onDeleted(pet.id);
+      message.success(`${pet.name}的名片已删除`);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "删除宠物失败");
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <article className="pet-card">
       <Image src={pet.avatarUrl} alt={pet.name} className="pet-avatar" />
@@ -382,6 +413,18 @@ function PetCard({ pet }: { pet: Pet }) {
           >
             分享 →
           </button>
+          <Popconfirm
+            title={`删除${pet.name}的名片？`}
+            description="成长回忆将不再显示，已上传的图片文件会保留。"
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true, loading: deleting }}
+            onConfirm={remove}
+          >
+            <Button type="text" danger size="small" loading={deleting}>
+              删除
+            </Button>
+          </Popconfirm>
         </div>
       </div>
     </article>
@@ -422,19 +465,14 @@ function PetEditor({ id }: { id?: string }) {
         birthday: raw.birthday?.format("YYYY-MM-DD") || null,
         arrivalDate: raw.arrivalDate?.format("YYYY-MM-DD") || null,
       };
+      const avatarFile = avatar[0]?.originFileObj;
+      if (avatarFile)
+        values.avatarUrl = (await api.uploadImage(avatarFile, "avatar")).url;
       const saved = isNew
         ? await api.createPet(values)
         : await api.updatePet(id!, values);
-      if (avatar[0]?.originFileObj) {
-        const uploaded = await api.uploadPetImage(
-          saved.id,
-          avatar[0].originFileObj,
-          "avatar",
-        );
-        await api.updatePet(saved.id, { avatarUrl: uploaded.url });
-      }
-      message.success("资料已保存");
-      navigate(`/dashboard/edit/${saved.id}`);
+      message.success(isNew ? "宠物已添加" : "资料已保存");
+      navigate(isNew ? "/dashboard" : `/dashboard/edit/${saved.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "保存失败");
     } finally {
@@ -712,8 +750,7 @@ function MemoryModal({
     try {
       let photoUrl = memory?.photoUrl || null;
       const file = fileList[0]?.originFileObj;
-      if (file)
-        photoUrl = (await api.uploadPetImage(petId, file, "memory")).url;
+      if (file) photoUrl = (await api.uploadImage(file, "memory")).url;
       const payload = {
         title: values.title,
         date: values.date?.format("YYYY-MM-DD") || null,
@@ -831,7 +868,9 @@ function Share({ id }: { id: string }) {
       setPet(updated);
       message.success(isPublished ? "名片已公开" : "名片已停止公开");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "更新分享状态失败");
+      message.error(
+        error instanceof Error ? error.message : "更新分享状态失败",
+      );
     } finally {
       setPublishing(false);
     }
@@ -1023,7 +1062,7 @@ export default function App() {
     return null;
   }
   let view: ReactNode;
-  if (current.name === "home") view = <Home />;
+  if (current.name === "home") view = <Home user={user} authReady={ready} />;
   else if (current.name === "login" || current.name === "register")
     view = <Auth mode={current.name} onAuth={setUser} />;
   else if (current.name === "dashboard") view = <Dashboard user={user!} />;

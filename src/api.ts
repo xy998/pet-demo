@@ -73,11 +73,12 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  uploadPetImage: async (id: string, file: File, kind: "avatar" | "memory") => {
+  deletePet: (id: string) => request<void>(`/pets/${id}`, { method: "DELETE" }),
+  uploadImage: async (file: File, kind: "avatar" | "memory") => {
     const form = new FormData();
     form.append("file", file);
     form.append("kind", kind);
-    const response = await fetch(`${base}/pets/${id}/upload`, {
+    const response = await fetch(`${base}/uploads`, {
       method: "POST",
       credentials: "include",
       body: form,
@@ -100,19 +101,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  sharing: (
-    id: string,
-    data: { isPublished: boolean },
-  ) =>
+  sharing: (id: string, data: { isPublished: boolean }) =>
     request<Pet>(`/pets/${id}/sharing`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
   publicPet: (slug: string) =>
     request<Pet>(`/public/pets/${encodeURIComponent(slug)}`),
-  unlock: (slug: string, password: string) =>
-    request<Pet>(`/public/pets/${encodeURIComponent(slug)}/unlock`, {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    }),
 };
