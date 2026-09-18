@@ -466,11 +466,13 @@ function PetEditor({ id }: { id?: string }) {
         arrivalDate: raw.arrivalDate?.format("YYYY-MM-DD") || null,
       };
       const avatarFile = avatar[0]?.originFileObj;
-      if (avatarFile)
-        values.avatarUrl = (await api.uploadImage(avatarFile, "avatar")).url;
       const saved = isNew
         ? await api.createPet(values)
         : await api.updatePet(id!, values);
+      if (avatarFile) {
+        const uploaded = await api.uploadImage(saved.id, avatarFile, "avatar");
+        await api.updatePet(saved.id, { avatarUrl: uploaded.url });
+      }
       message.success(isNew ? "宠物已添加" : "资料已保存");
       navigate(isNew ? "/dashboard" : `/dashboard/edit/${saved.id}`);
     } catch (err) {
@@ -750,7 +752,7 @@ function MemoryModal({
     try {
       let photoUrl = memory?.photoUrl || null;
       const file = fileList[0]?.originFileObj;
-      if (file) photoUrl = (await api.uploadImage(file, "memory")).url;
+      if (file) photoUrl = (await api.uploadImage(petId, file, "memory")).url;
       const payload = {
         title: values.title,
         date: values.date?.format("YYYY-MM-DD") || null,

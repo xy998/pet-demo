@@ -41,7 +41,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(base + path, {
     credentials: "include",
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    headers: {
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.headers || {}),
+    },
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) throw new Error(payload?.error || "请求失败，请稍后再试");
@@ -74,11 +77,11 @@ export const api = {
       body: JSON.stringify(data),
     }),
   deletePet: (id: string) => request<void>(`/pets/${id}`, { method: "DELETE" }),
-  uploadImage: async (file: File, kind: "avatar" | "memory") => {
+  uploadImage: async (id: string, file: File, kind: "avatar" | "memory") => {
     const form = new FormData();
     form.append("file", file);
     form.append("kind", kind);
-    const response = await fetch(`${base}/uploads`, {
+    const response = await fetch(`${base}/pets/${id}/upload`, {
       method: "POST",
       credentials: "include",
       body: form,
