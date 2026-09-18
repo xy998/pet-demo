@@ -1,280 +1,109 @@
-# 宠物时光 API 文档
+# 宠物时光 API
 
-基础路径：`/api`  
-数据格式：`application/json; charset=utf-8`  
-认证方式：服务端 Session + HttpOnly Cookie
+基础路径：`/api`。请求和响应使用 JSON；上传接口使用 `multipart/form-data`。管理接口通过已有 HttpOnly Session Cookie 认证。
 
-前端会在每个请求中携带 Cookie。除公开名片接口外，所有接口都必须验证当前 Session。
-
-## 通用约定
-
-成功响应：
+## 通用响应
 
 ```json
-{
-  "data": {}
-}
+{ "data": {} }
 ```
 
-失败响应：
+错误响应：
 
 ```json
-{
-  "error": "错误说明",
-  "code": "OPTIONAL_ERROR_CODE"
-}
+{ "error": "错误说明", "code": "OPTIONAL_CODE" }
 ```
 
-常用状态码：
+常用状态码：`200` 成功、`201` 创建成功、`204` 删除成功、`400` 参数错误、`401` 未登录、`403` 无权限、`404` 不存在、`413` 文件过大、`429` 请求过频。
 
-| 状态码 | 含义 |
-| --- | --- |
-| `200` | 请求成功 |
-| `201` | 创建成功 |
-| `204` | 删除成功，无响应体 |
-| `400` | 请求字段不合法 |
-| `401` | 未登录或 Session 已失效 |
-| `403` | 无操作权限或密码名片尚未解锁 |
-| `404` | 资源不存在，或不属于当前用户 |
-| `409` | 唯一字段冲突，如邮箱已注册、slug 已存在 |
-| `413` | 上传文件超过限制 |
-| `429` | 请求频率过高 |
+日期使用 `YYYY-MM-DD`，时间使用 ISO 8601。`/api/pets/*` 只能访问当前用户的宠物；资源不属于当前用户时统一返回 `404`。
 
-日期字段使用 `YYYY-MM-DD`，时间字段使用 ISO 8601 UTC，例如 `2026-09-18T08:00:00.000Z`。
-
-## 数据对象
-
-### User
-
-```json
-{
-  "id": "user_123",
-  "email": "user@example.com",
-  "birthday": "1990-01-01",
-  "createdAt": "2026-09-18T08:00:00.000Z",
-  "updatedAt": "2026-09-18T08:00:00.000Z"
-}
-```
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | string | 用户唯一 ID |
-| `email` | string | 唯一邮箱，统一使用小写存储 |
-| `birthday` | string \| null | 用户生日 |
-| `createdAt` | string | 创建时间 |
-| `updatedAt` | string | 更新时间 |
-
-### Pet
-
-```json
-{
-  "id": "pet_123",
-  "name": "六一",
-  "species": "dog",
-  "breed": "柴犬",
-  "bio": "一只喜欢奔跑的柴犬。",
-  "birthday": "2023-05-18",
-  "avatarUrl": "https://wssb.site/uploads/pets/avatar.webp",
-  "slug": "liuyi-abc123",
-  "visibility": "PUBLIC",
-  "isPublished": true,
-  "viewCount": 28,
-  "createdAt": "2026-09-18T08:00:00.000Z",
-  "updatedAt": "2026-09-18T08:00:00.000Z"
-}
-```
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | string | 宠物唯一 ID |
-| `name` | string | 1–80 字符 |
-| `species` | string | `dog`、`cat`、`other` |
-| `breed` | string \| null | 品种，最多 80 字符 |
-| `bio` | string \| null | 简介，最多 2000 字符 |
-| `birthday` | string \| null | 宠物生日 |
-| `avatarUrl` | string \| null | 头像 URL |
-| `slug` | string | 公开链接唯一标识 |
-| `visibility` | string | `PUBLIC` 或 `PASSWORD` |
-| `isPublished` | boolean | 是否允许访客访问 |
-| `viewCount` | number | 公开名片查看次数 |
-
-### Memory
-
-```json
-{
-  "id": "memory_123",
-  "title": "第一次见面",
-  "date": "2024-08-29",
-  "text": "故事从这一天开始。",
-  "photos": [
-    {
-      "id": "media_123",
-      "url": "https://wssb.site/uploads/pets/memory.webp",
-      "sort": 0
-    }
-  ],
-  "createdAt": "2026-09-18T08:00:00.000Z",
-  "updatedAt": "2026-09-18T08:00:00.000Z"
-}
-```
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | string | 回忆唯一 ID |
-| `title` | string | 1–120 字符 |
-| `date` | string \| null | 发生日期 |
-| `text` | string | 最多 5000 字符 |
-| `photos` | Media[] | 最多 3 张，数组顺序即展示顺序 |
-
-### Media
-
-```json
-{
-  "id": "media_123",
-  "url": "https://wssb.site/uploads/pets/uuid.webp",
-  "width": 1600,
-  "height": 1200,
-  "mimeType": "image/webp",
-  "size": 182034,
-  "sort": 0
-}
-```
-
-## 认证接口
+## 认证
 
 ### `POST /auth/register`
 
-创建普通用户，并写入登录 Session Cookie。
-
-请求：
-
 ```json
 {
   "email": "user@example.com",
-  "password": "at-least-12-characters",
+  "password": "至少 12 位的密码",
   "birthday": "1990-01-01"
 }
 ```
 
-| 字段 | 必填 | 规则 |
-| --- | ---: | --- |
-| `email` | 是 | 合法邮箱，唯一 |
-| `password` | 是 | 至少 12 位，后端只保存哈希 |
-| `birthday` | 否 | `YYYY-MM-DD` |
-
-成功响应：`201`
+`email`、`password` 必填，`birthday` 可选。密码至少 12 位，只保存哈希。成功创建 Session，返回 `201`：
 
 ```json
-{
-  "data": {
-    "user": {
-      "id": "user_123",
-      "email": "user@example.com",
-      "birthday": "1990-01-01"
-    }
-  }
-}
+{ "data": { "user": { "id": "user_123", "email": "user@example.com", "birthday": "1990-01-01" } } }
 ```
 
 ### `POST /auth/login`
 
-请求：
-
 ```json
-{
-  "email": "user@example.com",
-  "password": "at-least-12-characters"
-}
+{ "email": "user@example.com", "password": "至少 12 位的密码" }
 ```
 
-成功响应：`200`
+成功返回 `200` 并写入 Session Cookie：
 
 ```json
-{
-  "data": {
-    "user": {
-      "id": "user_123",
-      "email": "user@example.com"
-    }
-  }
-}
+{ "data": { "user": { "id": "user_123", "email": "user@example.com" } } }
 ```
 
 ### `GET /auth/me`
 
-成功响应：`200`
-
-```json
-{
-  "data": {
-    "user": {
-      "id": "user_123",
-      "email": "user@example.com",
-      "birthday": "1990-01-01"
-    }
-  }
-}
-```
-
-未登录时同样返回 `200`：
-
-```json
-{
-  "data": {
-    "user": null
-  }
-}
-```
+已登录：`{ "data": { "user": User } }`；未登录：`{ "data": { "user": null } }`。
 
 ### `PATCH /auth/profile`
 
-请求：
-
 ```json
-{
-  "birthday": "1990-01-01"
-}
+{ "birthday": "1990-01-01" }
 ```
 
 使用 `null` 清除生日。
 
 ### `POST /auth/logout`
 
-撤销当前 Session 并清除 Cookie。
+撤销当前 Session 并清除 Cookie，成功返回 `204`。
 
-成功响应：`204`
+## 宠物资料
 
-## 宠物管理接口
+### Pet 字段
+
+```text
+id, userId, name, species, breed, bio, birthday, avatarUrl,
+arrivalDate, gender, weight, coat, likes, tags, quote, quoteAuthor,
+slug, isPublished, viewCount, createdAt, updatedAt
+```
+
+字段规则：
+
+| 字段 | 类型 | 规则 |
+| --- | --- | --- |
+| `name` | string | 必填，1–80 字符 |
+| `species` | string | `dog`、`cat`、`other` |
+| `breed` | string/null | 最多 80 字符 |
+| `bio` | string/null | 最多 2000 字符 |
+| `birthday` | string/null | `YYYY-MM-DD` |
+| `arrivalDate` | string/null | `YYYY-MM-DD` |
+| `gender` | string/null | `male`、`female`、`unknown` |
+| `weight` | string/null | 正数，最多两位小数 |
+| `coat` | string/null | 最多 40 字符 |
+| `likes` | string/null | 最多 120 字符 |
+| `tags` | string[] | 最多 6 个，每个最多 12 字符 |
+| `quote` | string/null | 最多 200 字符 |
+| `quoteAuthor` | string/null | 最多 40 字符 |
+| `avatarUrl` | string/null | 上传接口返回的 URL |
 
 ### `GET /pets`
 
-返回当前用户拥有的宠物。列表不返回回忆正文。
-
-成功响应：`200`
+返回当前用户的宠物列表，成功返回 `200`：
 
 ```json
-{
-  "data": [
-    {
-      "id": "pet_123",
-      "name": "六一",
-      "species": "dog",
-      "breed": "柴犬",
-      "avatarUrl": "https://wssb.site/uploads/pets/avatar.webp",
-      "slug": "liuyi-abc123",
-      "visibility": "PUBLIC",
-      "isPublished": true,
-      "viewCount": 28,
-      "createdAt": "2026-09-18T08:00:00.000Z",
-      "updatedAt": "2026-09-18T08:00:00.000Z"
-    }
-  ]
-}
+{ "data": [Pet] }
 ```
 
 ### `POST /pets`
 
-请求：
+请求体是创建所需的 Pet 字段：
 
 ```json
 {
@@ -283,62 +112,53 @@
   "breed": "柴犬",
   "bio": "一只喜欢奔跑的柴犬。",
   "birthday": "2023-05-18",
-  "avatarUrl": "https://wssb.site/uploads/pets/avatar.webp"
+  "arrivalDate": "2024-08-29",
+  "gender": "male",
+  "weight": "8.2",
+  "coat": "赤色",
+  "likes": "晒太阳、鸡肉干",
+  "tags": ["温柔", "粘人"],
+  "quote": "有你的每一天，都是值得收藏的回忆。",
+  "quoteAuthor": "爱你的家人"
 }
 ```
 
-`name` 和 `species` 必填。新建宠物默认 `isPublished: false`，后端生成唯一 `slug`。
-
-成功响应：`201`，返回完整 `Pet` 对象。
+新建宠物默认 `isPublished: false`，后端生成唯一 `slug`。成功返回 `201` 和完整 `Pet`。
 
 ### `GET /pets/:id`
 
-返回当前用户拥有的完整 `Pet` 对象。资源不属于当前用户时返回 `404`。
+返回完整 Pet。成功返回 `200`。
 
 ### `PATCH /pets/:id`
 
-允许提交 `Pet` 对象中的以下可修改字段：
-
-```json
-{
-  "name": "六一",
-  "species": "dog",
-  "breed": "柴犬",
-  "bio": "一只喜欢奔跑的柴犬。",
-  "birthday": "2023-05-18",
-  "avatarUrl": "https://wssb.site/uploads/pets/avatar.webp",
-  "isPublished": true
-}
-```
-
-字段均可选。空字符串由后端转换为 `null` 或拒绝，规则需统一：建议 `breed`、`bio`、`birthday`、`avatarUrl` 可清空，`name` 不可清空。
-
-成功响应：`200`，返回完整更新后的 `Pet`。
+允许提交任意可修改 Pet 字段，字段全部可选。空值可清除可选资料，`name` 不能清空。成功返回 `200` 和更新后的 Pet。
 
 ### `DELETE /pets/:id`
 
-删除宠物、其回忆和关联媒体记录。
+删除宠物、回忆及数据库关联记录，成功返回 `204`。已经上传的文件不在此接口删除。
 
-成功响应：`204`。
+## 图片上传
 
-## 图片上传接口
+### `POST /pets/:id/upload`
 
-### `POST /pets/:id/media`
+权限：当前登录用户且宠物归属当前用户。
 
-请求类型：`multipart/form-data`
+请求类型：`multipart/form-data`。
 
-| 字段 | 必填 | 说明 |
-| --- | ---: | --- |
-| `file` | 是 | JPEG、PNG 或 WebP 图片 |
-| `kind` | 是 | `avatar` 或 `memory` |
+```text
+file: 图片文件（必填）
+kind: avatar | memory（必填）
+```
 
-成功响应：`201`
+规则：单次一张；支持 JPEG、PNG、WebP、GIF；最大 5 MB；后端使用 `sharp` 校验、压缩并转换为 WebP。文件写入 `/opt/vibe-awards/data/uploads/`，Nginx 将 `/uploads/` 映射为静态目录。
+
+成功响应 `201`：
 
 ```json
 {
   "data": {
-    "id": "media_123",
-    "url": "https://wssb.site/uploads/pets/uuid.webp",
+    "url": "/uploads/pets/2026/09/uuid.webp",
+    "kind": "memory",
     "width": 1600,
     "height": 1200,
     "mimeType": "image/webp",
@@ -347,138 +167,77 @@
 }
 ```
 
-后端规则：
+第一版不提供独立媒体库或媒体删除接口；删除回忆时保留已上传文件。
 
-- 单文件最大 5 MB。
-- 验证文件真实类型，不能只相信浏览器的 MIME 字段。
-- 用 `sharp` 压缩和转换为 WebP，必要时生成缩略图。
-- 上传目标宠物必须属于当前用户。
-- 密码保护名片的图片不能直接暴露永久公开 URL。
+## 成长记录
 
-### `DELETE /pets/:id/media/:mediaId`
+### Memory 字段
 
-删除未被头像或回忆引用的媒体资源。若仍被引用，返回 `409`。
+```text
+id, petId, title, date, text, photoUrl, createdAt, updatedAt
+```
 
-成功响应：`204`。
-
-## 回忆接口
+每篇回忆最多一张图片，`photoUrl` 可以为空。
 
 ### `GET /pets/:id/memories`
 
-返回当前用户该宠物的回忆，按 `date DESC, createdAt DESC` 排序。
-
-成功响应：`200`
+按 `date DESC NULLS LAST, createdAt DESC` 返回：
 
 ```json
-{
-  "data": [
-    {
-      "id": "memory_123",
-      "title": "第一次见面",
-      "date": "2024-08-29",
-      "text": "故事从这一天开始。",
-      "photos": [
-        {
-          "id": "media_123",
-          "url": "https://wssb.site/uploads/pets/memory.webp",
-          "sort": 0
-        }
-      ],
-      "createdAt": "2026-09-18T08:00:00.000Z",
-      "updatedAt": "2026-09-18T08:00:00.000Z"
-    }
-  ]
-}
+{ "data": [Memory] }
 ```
 
 ### `POST /pets/:id/memories`
-
-请求：
 
 ```json
 {
   "title": "第一次见面",
   "date": "2024-08-29",
   "text": "故事从这一天开始。",
-  "photoIds": ["media_123", "media_456"]
+  "photoUrl": "/uploads/pets/2026/09/memory.webp"
 }
 ```
 
-| 字段 | 必填 | 规则 |
-| --- | ---: | --- |
-| `title` | 是 | 1–120 字符 |
-| `date` | 否 | `YYYY-MM-DD` |
-| `text` | 否 | 最多 5000 字符 |
-| `photoIds` | 否 | 最多 3 个，属于当前用户并已上传到该宠物 |
+`title` 必填，1–80 字符；`date`、`text`、`photoUrl` 可选；`text` 最多 4000 字符。成功返回 `201` 和完整 Memory。
 
-成功响应：`201`，返回完整 `Memory`。
+### `GET /pets/:id/memories/:memoryId`
+
+返回当前用户的单条 Memory，成功返回 `200`。
 
 ### `PATCH /pets/:id/memories/:memoryId`
 
-请求字段与创建回忆相同，均可部分提交。`photoIds` 的数组顺序就是前端展示顺序。
-
-成功响应：`200`，返回完整更新后的 `Memory`。
+与创建请求使用相同字段，全部可选。可以通过新的 `photoUrl` 替换图片引用；旧文件保留。成功返回 `200`。
 
 ### `DELETE /pets/:id/memories/:memoryId`
 
-成功响应：`204`。
+删除数据库中的回忆记录，已上传图片文件保留，成功返回 `204`。
 
-删除回忆时建议只删除关联关系；物理图片可通过独立清理任务处理，或调用媒体删除接口。
-
-## 分享设置接口
+## 分享名片
 
 ### `PATCH /pets/:id/sharing`
 
-公开分享：
-
 ```json
-{
-  "visibility": "PUBLIC",
-  "isPublished": true
-}
+{ "isPublished": true }
 ```
 
-密码分享：
-
-```json
-{
-  "visibility": "PASSWORD",
-  "isPublished": true,
-  "password": "至少 4 位的访问密码"
-}
-```
-
-| 字段 | 必填 | 说明 |
-| --- | ---: | --- |
-| `visibility` | 是 | `PUBLIC` 或 `PASSWORD` |
-| `isPublished` | 否 | 是否允许外部访问 |
-| `password` | `PASSWORD` 时是 | 4–72 UTF-8 字节，只保存哈希 |
-
-空字符串密码表示移除旧密码，仅能在 `PUBLIC` 模式下使用。
-
-成功响应：`200`
+第一版只使用永久分享链接，不使用访问密码。成功返回：
 
 ```json
 {
   "data": {
     "id": "pet_123",
     "slug": "liuyi-abc123",
-    "visibility": "PASSWORD",
     "isPublished": true,
     "shareUrl": "https://wssb.site/p/liuyi-abc123"
   }
 }
 ```
 
-修改访问密码后，旧的名片解锁 Cookie 或签名凭证必须立即失效。
-
-## 公开名片接口
-
 ### `GET /public/pets/:slug`
 
-适用范围：已发布的公开名片，或已完成密码解锁的名片。
+不要求登录，只允许访问 `isPublished: true` 的宠物。分享链接永久有效；未发布或不存在返回 `404`。
 
-成功响应：`200`
+返回公开 Pet 资料及回忆：
 
 ```json
 {
@@ -489,52 +248,29 @@
     "breed": "柴犬",
     "bio": "一只喜欢奔跑的柴犬。",
     "birthday": "2023-05-18",
-    "avatarUrl": "https://wssb.site/uploads/pets/avatar.webp",
+    "arrivalDate": "2024-08-29",
+    "gender": "male",
+    "weight": "8.2",
+    "coat": "赤色",
+    "likes": "晒太阳、鸡肉干",
+    "tags": ["温柔", "粘人"],
+    "quote": "有你的每一天，都是值得收藏的回忆。",
+    "quoteAuthor": "爱你的家人",
+    "avatarUrl": "/uploads/pets/avatar.webp",
     "slug": "liuyi-abc123",
     "viewCount": 28,
-    "memories": []
+    "memories": [
+      {
+        "id": "memory_123",
+        "petId": "pet_123",
+        "title": "第一次见面",
+        "date": "2024-08-29",
+        "text": "故事从这一天开始。",
+        "photoUrl": "/uploads/pets/2026/09/memory.webp"
+      }
+    ]
   }
 }
 ```
 
-密码名片尚未解锁时返回 `403`：
-
-```json
-{
-  "error": "该名片需要访问密码",
-  "code": "PET_PASSWORD_REQUIRED",
-  "data": {
-    "name": "六一",
-    "slug": "liuyi-abc123",
-    "visibility": "PASSWORD"
-  }
-}
-```
-
-未解锁状态不能返回简介、生日、回忆正文或图片地址。
-
-### `POST /public/pets/:slug/unlock`
-
-请求：
-
-```json
-{
-  "password": "访问密码"
-}
-```
-
-成功时后端写入仅用于此名片的 HttpOnly Cookie，并返回完整公开名片对象。
-
-成功响应：`200`
-
-```json
-{
-  "data": {
-    "id": "pet_123",
-    "name": "六一",
-    "memories": []
-  }
-}
-```
-
-密码错误返回 `403`。该接口必须限流，避免暴力猜测。
+二维码由前端根据 `https://wssb.site/p/{slug}` 使用 `qrcode` 包生成，不需要二维码接口。
